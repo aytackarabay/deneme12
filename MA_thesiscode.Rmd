@@ -1,6 +1,6 @@
 ---
 title: "MAthesis"
-author: "ASKarabay"
+author: "Asel Simla Karabay"
 date: "5/22/2021"
 output: html_document
 ---
