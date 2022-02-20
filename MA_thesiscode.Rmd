@@ -1,0 +1,271 @@
+---
+title: "MAthesis"
+author: "ASKarabay"
+date: "5/22/2021"
+output: html_document
+---
+# Initiate libraries 
+
+```{r}
+library(data.table)
+library(tidyverse)
+library('ggpubr')
+library("Hmisc")
+library(corrplot)
+library(knitr)
+library(apaTables)
+dt_tmp=fread('AselMAthesisJASP.csv')
+#header=fread('header_1.csv')
+#fisher`s exact test for the gender distribution.
+
+#make variable residence and group LX speakers of English and USA as EN.
+dt_tmp$Residence <- ordered(dt_tmp$Residence, levels = c("TR", "NL", "EN", "USA"))
+level_order <- c("TR", "NL", "EN", "USA")
+#Get the gender distribution table in LX group
+genderdistribution=table(dt_tmp$Residence,dt_tmp$Q4)
+genderdistribution=genderdistribution[,-3]#delete other gender from the test
+
+fisherexact_genderTR=fisher.test(genderdistribution)#fisher test
+fisherexact_genderTR
+
+#Average age for groups
+age=aggregate(Q5~Residence, data=dt_tmp, mean)
+dt=dt_tmp
+## Age Plot
+age_plot = ggplot(dt, aes(x = factor(Residence, level = level_order), y=Q5,  fill = Residence)) + 
+  geom_boxplot(alpha = 0.3) +
+  geom_jitter(width = 0.2, alpha = 0.25) +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  theme_bw() +
+  theme(legend.position = "none") + 
+  labs(x = "Country of Residence", y = 'Age')+
+  ggsave("age_plot.png")
+
+## Exposure of Turkish and English Language TV content and Social Media Content
+library('tidyverse')
+exposure_dt = dt[,c(2, 21:26)]
+exposure_lan = gather(exposure_dt[,1:3], condition, measurement, Q12_1:Q13_1, factor_key=TRUE)
+levels(exposure_lan$condition) <- c("English Lang.", "Turkish Lang.")
+
+a <- ggplot(exposure_lan, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Language Exposure')
+
+exposure_tv = gather(exposure_dt[,c(1,4,5)], condition, measurement, Q14_1:Q15_1, factor_key=TRUE)
+levels(exposure_tv$condition) <- c("English Lang.", "Turkish Lang.")
+
+b <- ggplot(exposure_tv, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'TV Exposure')
+
+
+exposure_socialmedia = gather(exposure_dt[,c(1,6,7)], condition, measurement, Q16_1:Q17_1, factor_key=TRUE)
+levels(exposure_socialmedia$condition) <- c("English Lang.", "Turkish Lang.")
+
+c <- ggplot(exposure_socialmedia, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition)) +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Social Media Exposure')
+
+exposure_dt$TotalEN=(exposure_dt[,2]+exposure_dt[,4]+exposure_dt[,6])/3
+exposure_dt$TotalTR=(exposure_dt[,3]+exposure_dt[,5]+exposure_dt[,7])/3
+
+exposuretotal = gather(exposure_dt[,c(1,8,9)], condition, measurement, TotalEN:TotalTR, factor_key=TRUE)
+levels(exposuretotal$condition) <- c("English Lang.", "Turkish Lang.")
+
+write.table(exposure_dt, 'exposure_dt.txt', append = FALSE, sep = " ", dec = ".",
+            row.names = FALSE, col.names = TRUE)
+
+d <- ggplot(exposuretotal, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Mean Exposure')
+
+ggarrange(d, a, b, c,  common.legend = TRUE, 
+          labels = c("a", "b", "c", "d"),
+          ncol = 2, nrow = 2) +
+          ggsave("exposurefigure.png")
+
+
+#Table 2
+aggregate(measurement~condition+Residence, data=exposuretotal, mean)
+aggregate(measurement~condition+Residence, data=exposure_lan, mean)
+aggregate(measurement~condition+Residence, data=exposure_tv, mean)
+aggregate(measurement~condition+Residence, data=exposure_socialmedia, mean)
+
+
+## Lextale by country of residency
+LexTALE_byresidence = ggplot(dt, aes(x = factor(Residence, level = level_order), y=Lextale,  fill = Residence)) + 
+  geom_boxplot(alpha = 0.3) +
+  geom_jitter(width = 0.2, alpha = 0.25) +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  theme_bw() +
+  theme(legend.position = "none") + 
+  labs(x = "Country of Residence", y = 'LexTALE')+
+  ggsave("LexTALE_byresidence_plot.png")
+## Cronbach alpha for Emotional Intelligence Scale
+dt_TR_CR=dt[dt$Residence=='TR',27:56]
+dt_NL_CR=dt[dt$Residence=='NL',27:56]
+dt_EN_CR=dt[dt$Residence=='EN',27:56]
+dt_US_CR=dt[dt$Residence=='USA',27:56]
+library(ltm)
+cronbach.alpha(dt_TR_CR, CI=TRUE)
+cronbach.alpha(dt_NL_CR, CI=TRUE)
+cronbach.alpha(dt_EN_CR, CI=TRUE)
+cronbach.alpha(dt_US_CR, CI=TRUE)
+
+## EI by country of residency
+EI_byresidence = ggplot(dt, aes(x = factor(Residence, level = level_order), y=TEIQue,  fill = Residence)) + 
+  geom_boxplot(alpha = 0.3) +
+  geom_jitter(width = 0.2, alpha = 0.25) +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3, size=1.1)+
+  theme_bw() +
+  theme(legend.position = "none") + 
+  labs(x = "Country of Residence", y = 'EI Score')+
+  ylim(0.5,7)+
+  ggsave("EI_byresidence_plot.png")
+
+## Correlation Analysis of general variables
+corr_dt=dt[,c(4,69:78)]
+corr_dt$Age=corr_dt$Q5
+corr_dt=corr_dt[,!1]
+apa.cor.table(corr_dt, filename="Table1_APA.doc", table.number=1)
+
+res2 <- rcorr(as.matrix(corr_dt))
+res2
+corrplot(res2$r, type="upper", order="hclust", 
+         p.mat = res2$P, sig.level = 0.05, insig = "blank")
+
+## Correlation of exposure and emotional reactions
+exposure_dt2 = dt[,c(21:26,75:78)]
+exposure_dt2$TotalEN=(exposure_dt2[,1]+exposure_dt2[,3]+exposure_dt2[,5])/3
+exposure_dt2$TotalTR=(exposure_dt2[,2]+exposure_dt2[,4]+exposure_dt2[,6])/3
+exposure_dt2=exposure_dt2[,c(11,12,1:6,7:10)]
+
+apa.cor.table(exposure_dt2, filename="Table2_APA.doc", table.number=1)
+
+## Average reactions to TV content
+reactTV = dt[,c(2, 57:68, 75,76)]
+reactTVall = gather(reactTV[,c(1,14,15)], condition, measurement, TVReactionsEN:TVReactionsTR, factor_key=TRUE)
+levels(reactTVall$condition) <- c("English Lang.", "Turkish Lang.")
+
+a <- ggplot(reactTVall, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  labs(x = "Country of Residence", y = 'Emotional Reactions to TV Content')
+
+reactEmoNews = gather(reactTV[,c(1,2,3)], condition, measurement, Q20_1:Q21_1, factor_key=TRUE)
+levels(reactEmoNews$condition) <- c("English Lang.", "Turkish Lang.")
+
+b <- ggplot(reactEmoNews, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Emotional Reactions to TV News')
+
+
+reactEmoMovie = gather(reactTV[,c(1,4,5)], condition, measurement, Q22_1:Q23_1, factor_key=TRUE)
+levels(reactEmoMovie$condition) <- c("English Lang.", "Turkish Lang.")
+
+c <- ggplot(reactEmoMovie, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Emotional Reactions to TV Movies')
+
+
+reactFunMovie = gather(reactTV[,c(1,6,7)], condition, measurement, Q24_1:Q25_1, factor_key=TRUE)
+levels(reactFunMovie$condition) <- c("English Lang.", "Turkish Lang.")
+
+d <- ggplot(reactFunMovie, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Funny Reactions to Funny Movies')
+
+reacttrustNEWS = gather(reactTV[,c(1,8,9)], condition, measurement, Q26_1:Q27_1, factor_key=TRUE)
+levels(reacttrustNEWS$condition) <- c("English Lang.", "Turkish Lang.")
+
+e <- ggplot(reacttrustNEWS, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Trust in TV News')
+
+ggarrange(b, c, d, e,  common.legend = TRUE, 
+          labels = c( "b", "c", "d", "e"),
+          ncol = 2, nrow = 2) +
+          ggsave("Figure5.png")
+
+
+#Social Media Figures
+reactSocial = dt[,c(2, 65:68, 77,78)]
+reactSocialAll = gather(reactSocial[,c(1,6,7)], condition, measurement, SocialMediaEN:SocialMediaTR, factor_key=TRUE)
+levels(reactSocialAll$condition) <- c("English Lang.", "Turkish Lang.")
+
+a <- ggplot(reactSocialAll, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  labs(x = "Country of Residence", y = 'Total Score of Emotional Reactions to Social Media Content')
+
+
+reactEmoSM = gather(reactSocial[,c(1,2,3)], condition, measurement, Q28_1:Q29_1, factor_key=TRUE)
+levels(reactEmoSM$condition) <- c("English Lang.", "Turkish Lang.")
+
+b <- ggplot(reactEmoSM, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Emotional Reactions to Social Media')
+
+
+reactFunSM = gather(reactSocial[,c(1,4,5)], condition, measurement, Q30_1:Q31_1, factor_key=TRUE)
+levels(reactFunSM$condition) <- c("English Lang.", "Turkish Lang.")
+
+c <- ggplot(reactFunSM, aes(x = factor(Residence, level = level_order), y=measurement,  color = condition))  +
+  stat_summary(fun=mean, geom = 'point', size = 3)+
+  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.3)+
+  stat_summary(aes(group=condition), fun=mean, geom = 'line', size=1)+
+  theme_bw() +
+  ylim(1,7)+
+  labs(x = "Country of Residence", y = 'Funny Reactions to Social Media')
+
+ggarrange(a, b, c,  common.legend = TRUE, 
+          labels = c( "a", "b", "c"),
+          ncol = 3, nrow = 1) +
+          ggsave("Figure6.png")
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
